@@ -1,96 +1,107 @@
-const  express=require("express");
-const app=express();
-const mongoose=require("mongoose");
-const ejs=require("ejs");
-const  Listing=require("../Wanderlust/models/listing.js");
-const path=require("path");
-const methodOverride=require("method-override");
+const express = require("express");
+const app = express();
+const mongoose = require("mongoose");
+const path = require("path");
+const methodOverride = require("method-override");
+const ejsMate = require("ejs-mate");
+const Listing = require("../Wanderlust/models/listing.js");
 
-main().then(()=>{
+(async () => {
+  try {
+    await mongoose.connect('mongodb://127.0.0.1:27017/Wander');
     console.log("Connected to DB");
-})
-.catch(err => console.log(err));
+  } catch (err) {
+    console.error("Error connecting to the database", err);
+  }
+})();
 
-async function main() {
-  await mongoose.connect('mongodb://127.0.0.1:27017/Wander');
-}
-
-app.listen(8080,()=>{
-    console.log("App is listening the port");
-});
-
-app.get("/",(req,res)=>{
-    res.send("Hii , i am root");
-});
-
-// app.get("/testlisting",async(req,res)=>{
-//     let samplelisting=new Listing({
-//         title:"Yash Khedkar",
-//         description:"Sanjivani Clg ",
-//         price:1200,
-//         location:"India",
-//         country:"India"
-//     });
-
-//     await samplelisting.save();
-//     console.log("Successs");
-//     res.send("Done");
-// });
-
-app.set("view engine","ejs");
-app.set("views",path.join(__dirname,"views"));
-app.use(express.urlencoded({extended:true}));
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+app.engine("ejs", ejsMate);
+app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
+app.use(express.static(path.join(__dirname, "/public")));
 
-
-//Index Route
-app.get("/listings",async(req,res)=>{
- const alllistings=  await Listing.find({});
- res.render("listings/index.ejs",{alllistings});
-        
+app.listen(8080, () => {
+  console.log("App is listening on port 8080");
 });
 
-//create new Listing
-app.get("/listings/new",(req,res)=>{
-    res.render("listings/new.ejs",)
+app.get("/", (req, res) => {
+  res.send("Hi, I am root");
 });
 
-app.post("/listings",async(req,res)=>{
+// Index Route: Display all listings
+app.get("/listings", async (req, res) => {
+  try {
+    const alllistings = await Listing.find({});
+    res.render("listings/index", { alllistings });
+  } catch (err) {
+    console.error("Error fetching listings", err);
+    res.status(500).send("Server Error");
+  }
+});
+
+// Create New Listing Form
+app.get("/listings/new", (req, res) => {
+  res.render("listings/new");
+});
+
+// Create New Listing (POST)
+app.post("/listings", async (req, res) => {
+  try {
     const newlisting = new Listing(req.body.listing);
     await newlisting.save();
     res.redirect("/listings");
-})
+  } catch (err) {
+    console.error("Error creating new listing", err);
+    res.status(500).send("Server Error");
+  }
+});
 
-//edit route
-app.get("/listings/:id/edit",async(req,res)=>{
-    let {id}=req.params;
-    const listing=await Listing.findById(id);
-    res.render("listings/edit.ejs",{listing});
-})
-//show route
-app.get("/listings/:id",async(req,res)=>{
-    let {id}=req.params;
-    const listing=await Listing.findById(id);
-    res.render("listings/show.ejs",{listing});
-})
- //Update route
+// Edit Listing Form
+app.get("/listings/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const listing = await Listing.findById(id);
+    res.render("listings/edit", { listing });
+  } catch (err) {
+    console.error("Error fetching listing for edit", err);
+    res.status(500).send("Server Error");
+  }
+});
 
- app.put("/listings/:id",async(req,res)=>{
-    let {id}=req.params;
-    await Listing.findByIdAndUpdate(id,{...req.body.listing});
-    res.redirect(`/listings/${id}`)
- })
+// Show Single Listing
+app.get("/listings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const listing = await Listing.findById(id);
+    res.render("listings/show", { listing });
+  } catch (err) {
+    console.error("Error fetching listing", err);
+    res.status(500).send("Server Error");
+  }
+});
 
- //delete route
+// Update Listing (PUT)
+app.put("/listings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Listing.findByIdAndUpdate(id, { ...req.body.listing });
+    res.redirect(`/listings/${id}`);
+  } catch (err) {
+    console.error("Error updating listing", err);
+    res.status(500).send("Server Error");
+  }
+});
 
- app.delete("/listings/:id",async(req,res)=>{
-    let {id}=req.params;
-    let deletedlisting=await Listing.findByIdAndDelete(id);
-    console.log(deletedlisting);
+// Delete Listing (DELETE)
+app.delete("/listings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Listing.findByIdAndDelete(id);
     res.redirect("/listings");
- })
-
-
-
-
-
+  } catch (err) {
+    console.error("Error deleting listing", err);
+    res.status(500).send("Server Error");
+  }
+});
